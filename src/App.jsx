@@ -1,3 +1,6 @@
+import React from "react";
+import { supabase } from "./lib/supabase.js";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 /** =========================================================
