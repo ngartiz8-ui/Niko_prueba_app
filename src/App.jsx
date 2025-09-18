@@ -1,7 +1,5 @@
-import React from "react";
-import { supabase } from "./lib/supabase.js";
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "./lib/supabase.js";
 
 /** =========================================================
  *  GrupoNet – MVP móvil sin dependencias externas (React)
