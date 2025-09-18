@@ -76,13 +76,17 @@ export default function App() {
   }
 
   // 🔹 Enviar login
-  async function signInWithEmail() {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    setLoading(false);
-    if (error) alert(error.message);
-    else alert("Revisa tu email para el enlace mágico ✨");
-  }
+async function signInWithEmail() {
+  setLoading(true);
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin } // 👈 clave
+  });
+  setLoading(false);
+  if (error) alert(error.message);
+  else alert("Revisa tu email");
+}
+
 
   async function signOut() {
     await supabase.auth.signOut();
