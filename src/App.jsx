@@ -1,21 +1,6 @@
-
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabase.js";
 
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-});
-
-
-/* --- Tus imports de UI (mantenlos como ya tenías) --- */
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Check, Image as ImageIcon, Link2, MessageSquareText, Plus, Send, Users } from "lucide-react";
 
-/* =============== Utilidades =============== */
+/* ================= Utilidades ================= */
 function initials(name = "") {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map(p => (p[0] || "").toUpperCase()).join("") || "?";
@@ -50,7 +35,7 @@ function dataUrlFromFile(file) {
   });
 }
 
-/* =============== Login simple =============== */
+/* ================= Login ================= */
 function LoginGate() {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
@@ -81,7 +66,7 @@ function LoginGate() {
             }}
           >{sending?"Enviando…":"Enviar enlace mágico"}</Button>
           <div className="text-xs text-muted-foreground">
-            Si el enlace vuelve al login en bucle, abre el link en el <b>navegador</b> (no dentro de la app de correo) y revisa en Supabase → Auth → URL que esté tu dominio de Vercel.
+            Si el enlace vuelve al login, abre el link en el navegador del sistema y revisa Supabase → Auth → URL.
           </div>
         </CardContent>
       </Card>
@@ -89,7 +74,7 @@ function LoginGate() {
   );
 }
 
-/* =============== Componentes UI =============== */
+/* ================= UI Components (misma estética “guapa”) ================= */
 function TopBar({ user, onEditProfile, onSignOut }) {
   return (
     <div className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -154,7 +139,7 @@ function ProfileDialog({ open, setOpen, user, onSave }) {
   );
 }
 
-function GroupCard({ group, isMember, onOpen, onJoinRequest }) {
+function GroupCard({ group, isMember, onOpen, onJoin }) {
   return (
     <Card className="hover:shadow-md transition cursor-pointer" onClick={onOpen}>
       <CardHeader className="flex-row items-center gap-3 space-y-0">
@@ -168,7 +153,7 @@ function GroupCard({ group, isMember, onOpen, onJoinRequest }) {
         {isMember ? (
           <Badge variant="secondary">Miembro</Badge>
         ) : (
-          <Button size="sm" onClick={(e)=>{ e.stopPropagation(); onJoinRequest(); }}>Unirme</Button>
+          <Button size="sm" onClick={(e)=>{ e.stopPropagation(); onJoin(); }}>Unirme</Button>
         )}
       </CardHeader>
     </Card>
@@ -334,14 +319,13 @@ function DiscoverList({ groups, myGroups, onOpenGroup, onJoin }) {
   return (
     <div className="grid gap-3">
       {groups.map((g) => (
-        <GroupCard key={g.id} group={g} isMember={myGroups.includes(g.id)} onOpen={()=>onOpenGroup(g.id)} onJoinRequest={()=>onJoin(g.id)} />
+        <GroupCard key={g.id} group={g} isMember={myGroups.includes(g.id)} onOpen={()=>onOpenGroup(g.id)} onJoin={()=>onJoin(g.id)} />
       ))}
     </div>
   );
 }
 
 function Feed({ me, groups, posts }) {
-  // Posts de mis grupos
   const myGroupIds = groups.filter((g)=>g._isMine).map((g)=>g.id);
   const visiblePosts = posts.filter((p)=>myGroupIds.includes(p.group_id))
     .sort((a,b)=> (new Date(b.ts||b.created_at)) - (new Date(a.ts||a.created_at)));
@@ -377,27 +361,27 @@ function MembersDialog({ open, setOpen, members, profilesById, title }) {
   );
 }
 
-/* =============== APP PRINCIPAL (Supabase + UI guapa) =============== */
+/* ===================== APP (con Supabase) ===================== */
 export default function App() {
-  /* --- Sesión y perfil --- */
+  /* Sesión / perfil */
   const [session, setSession] = useState(null);
-  const [me, setMe] = useState(null); // profiles row
+  const [me, setMe] = useState(null);
 
-  /* --- Datos principales --- */
-  const [groups, setGroups] = useState([]);           // todas (añadimos flag _isMine para UX)
-  const [memberships, setMemberships] = useState([]); // mis membresías
-  const [posts, setPosts] = useState([]);             // posts visibles (mis grupos)
-  const [messages, setMessages] = useState([]);       // mensajes del grupo abierto
+  /* Datos */
+  const [groups, setGroups] = useState([]);
+  const [memberships, setMemberships] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [profilesById, setProfilesById] = useState({});
 
-  /* --- UI state --- */
+  /* UI */
   const [activeTab, setActiveTab] = useState("feed");
   const [profileOpen, setProfileOpen] = useState(false);
   const [openGroupId, setOpenGroupId] = useState(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
-  /* --- Sesión --- */
+  /* Sesión */
   useEffect(()=>{
     supabase.auth.getSession().then(({ data })=> setSession(data.session || null));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s)=> setSession(s));
@@ -408,7 +392,7 @@ export default function App() {
 
   const meId = session.user.id;
 
-  /* --- Asegurar perfil --- */
+  /* Asegurar perfil */
   useEffect(()=>{
     (async ()=>{
       const { data: p } = await supabase.from("profiles").select("*").eq("id", meId).maybeSingle();
@@ -421,50 +405,45 @@ export default function App() {
     })();
   }, [meId]);
 
-  /* --- Carga principal --- */
+  /* Carga principal */
   async function loadAll() {
-    // mis membresías
+    // Mis membresías
     const { data: ms } = await supabase.from("memberships").select("*").eq("user_id", meId);
     setMemberships(ms || []);
     const myGroupIds = (ms || []).map(m=>m.group_id);
 
-    // grupos
+    // Grupos
     const { data: gs } = await supabase.from("groups").select("*").order("created_at",{ascending:false});
     const marked = (gs||[]).map(g => ({ ...g, _isMine: myGroupIds.includes(g.id) }));
     setGroups(marked);
 
-    // perfiles (ligeros): de admins de grupos + mi perfil (para mostrar nombres)
+    // Perfiles (admins y yo)
     const adminIds = Array.from(new Set(marked.map(g=>g.admin_id).filter(Boolean).concat(meId)));
     if (adminIds.length) {
       const { data: ps } = await supabase.from("profiles").select("*").in("id", adminIds);
-      const map = {};
-      (ps||[]).forEach(p=>{ map[p.id] = p; });
+      const map = {}; (ps||[]).forEach(p=>{ map[p.id] = p; });
       setProfilesById(map);
     }
 
-    // posts de mis grupos
+    // Posts (mis grupos)
     if (myGroupIds.length) {
-      const { data: ps } = await supabase
-        .from("posts").select("*").in("group_id", myGroupIds)
-        .order("ts",{ascending:false}).limit(200);
+      const { data: ps } = await supabase.from("posts").select("*").in("group_id", myGroupIds).order("ts",{ascending:false}).limit(200);
       setPosts(ps||[]);
     } else {
       setPosts([]);
     }
 
-    // mensajes del grupo abierto
+    // Mensajes (grupo abierto)
     if (openGroupId) {
-      const { data: ms2 } = await supabase
-        .from("messages").select("*").eq("group_id", openGroupId)
-        .order("ts",{ascending:true}).limit(200);
-      setMessages(ms2||[]);
+      const { data: mm } = await supabase.from("messages").select("*").eq("group_id", openGroupId).order("ts",{ascending:true}).limit(200);
+      setMessages(mm||[]);
     } else {
       setMessages([]);
     }
   }
   useEffect(()=>{ loadAll(); }, [meId, openGroupId]);
 
-  /* --- Realtime posts (mis grupos) --- */
+  /* Realtime: posts (mis grupos) */
   useEffect(()=>{
     const myIds = memberships.map(m=>m.group_id);
     if (myIds.length===0) return;
@@ -479,7 +458,7 @@ export default function App() {
     return ()=> { supabase.removeChannel(ch); };
   }, [memberships]);
 
-  /* --- Realtime mensajes (grupo abierto) --- */
+  /* Realtime: mensajes (grupo abierto) */
   useEffect(()=>{
     if (!openGroupId) return;
     const ch = supabase.channel(`msgs-${openGroupId}`)
@@ -491,7 +470,7 @@ export default function App() {
     return ()=> { supabase.removeChannel(ch); };
   }, [openGroupId]);
 
-  /* --- Acciones --- */
+  /* Acciones */
   async function updateUser({ name, photo }) {
     const { error } = await supabase.from("profiles").update({ name, photo }).eq("id", meId);
     if (!error) setMe((p)=>({ ...(p||{}), name, photo }));
@@ -518,13 +497,11 @@ export default function App() {
     if (error) alert(error.message);
   }
 
-  /* --- Derivados para la UI --- */
+  /* Derivados para UI */
   const myGroupIds = useMemo(()=> memberships.map(m=>m.group_id), [memberships]);
   const myGroups = useMemo(()=> groups.filter(g=>myGroupIds.includes(g.id)), [groups, myGroupIds]);
   const discover = useMemo(()=> groups.filter(g=>!myGroupIds.includes(g.id)), [groups, myGroupIds]);
-
   const openGroup = groups.find((g)=>g.id===openGroupId);
-
   const onboardingNeeded = !me?.name;
 
   return (
@@ -549,13 +526,12 @@ export default function App() {
             {/* GRUPOS */}
             <TabsContent value="groups" className="grid lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 grid gap-4">
-                {/* Grupo abierto */}
                 {openGroup ? (
                   <GroupPage
                     group={openGroup}
                     me={me}
                     posts={posts.filter(p=>p.group_id===openGroup.id)}
-                    allUsers={[me]} // para autor local; podrías ampliar con profilesById
+                    allUsers={[me]}
                     onPublish={(payload)=>publishToGroup(openGroup.id, payload)}
                     onOpenMembers={()=>setMembersOpen(true)}
                     onOpenChat={()=>setChatOpen(true)}
@@ -566,7 +542,7 @@ export default function App() {
                       <CardTitle>Gestiona tus grupos</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="text-sm text-muted-foreground">Selecciona un grupo de la derecha o crea uno nuevo.</div>
+                      <div className="text-sm text-muted-foreground">Selecciona un grupo o crea uno nuevo.</div>
                     </CardContent>
                   </Card>
                 )}
