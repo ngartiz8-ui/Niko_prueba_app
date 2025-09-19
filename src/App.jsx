@@ -1,30 +1,37 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./lib/supabase.js";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Check, Image as ImageIcon, Link2, MessageSquareText, Plus, Send, Users } from "lucide-react";
+/* === Importa los stubs locales (rutas relativas, SIN alias "@") === */
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Input } from "./components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "./components/ui/avatar";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
+import { ScrollArea } from "./components/ui/scroll-area";
+import { Badge } from "./components/ui/badge";
+import { Separator } from "./components/ui/separator";
+import { TooltipProvider } from "./components/ui/tooltip";
 
-/* ================= Utilidades ================= */
+/* === Iconos simples (evitamos dependencias externas) === */
+const Users = (p)=> <span {...p}>👥</span>;
+const Plus = (p)=> <span {...p}>➕</span>;
+const ImageIcon = (p)=> <span {...p}>🖼️</span>;
+const MessageSquareText = (p)=> <span {...p}>💬</span>;
+const Send = (p)=> <span {...p}>📨</span>;
+
+/* === Utilidades === */
 function initials(name = "") {
   const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map(p => (p[0] || "").toUpperCase()).join("") || "?";
+  return parts.map((p) => (p[0] || "").toUpperCase()).join("") || "?";
 }
 function timeAgo(ts) {
-  const d = typeof ts === "string" ? new Date(ts).getTime() : ts;
-  const s = Math.floor((Date.now() - d) / 1000);
+  const t = typeof ts === "string" ? new Date(ts).getTime() : ts;
+  const s = Math.floor((Date.now() - t) / 1000);
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60); if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60); if (h < 24) return `${h}h`;
-  const dd = Math.floor(h / 24); return `${dd}d`;
+  const d = Math.floor(h / 24); return `${d}d`;
 }
 function dataUrlFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -35,7 +42,29 @@ function dataUrlFromFile(file) {
   });
 }
 
-/* ================= Login ================= */
+/* === ErrorBoundary para ver errores reales en producción === */
+class AppErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state = { err: null, info: null }; }
+  static getDerivedStateFromError(error){ return { err: error }; }
+  componentDidCatch(error, info){ this.setState({ info }); }
+  render(){
+    if (this.state.err) {
+      return (
+        <div style={{padding:16,fontFamily:"monospace",whiteSpace:"pre-wrap"}}>
+          <h3>❌ Error al renderizar</h3>
+          <div><b>Error:</b> {String(this.state.err)}</div>
+          <div style={{marginTop:8,opacity:.75}}>
+            <b>Stack:</b>{"\n"}{this.state.err?.stack}
+            {"\n\n"}<b>ComponentStack:</b>{"\n"}{this.state.info?.componentStack}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* === Login (OTP) === */
 function LoginGate() {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
@@ -65,8 +94,9 @@ function LoginGate() {
               else alert("Te enviamos un enlace a tu email. Ábrelo para entrar ✨");
             }}
           >{sending?"Enviando…":"Enviar enlace mágico"}</Button>
-          <div className="text-xs text-muted-foreground">
-            Si el enlace vuelve al login, abre el link en el navegador del sistema y revisa Supabase → Auth → URL.
+          <div className="text-xs" style={{opacity:.7}}>
+            Si el enlace te devuelve al login, abre el link en el navegador del sistema
+            y revisa Supabase → Auth → URL (usa tu dominio de Vercel).
           </div>
         </CardContent>
       </Card>
@@ -74,23 +104,23 @@ function LoginGate() {
   );
 }
 
-/* ================= UI Components (misma estética “guapa”) ================= */
+/* === Componentes UI (tu estética) === */
 function TopBar({ user, onEditProfile, onSignOut }) {
   return (
-    <div className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="sticky top-0 z-20" style={{borderBottom:"1px solid #eee", background:"rgba(255,255,255,0.85)", backdropFilter:"blur(6px)"}}>
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="h-6 w-6" />
+          <Users style={{fontSize:20}} />
           <span className="font-bold text-lg">GrupoNet · Supabase</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={onEditProfile} className="gap-2">
+          <Button onClick={onEditProfile} className="gap-2">
             <Avatar className="h-6 w-6">
               {user?.photo ? <AvatarImage src={user.photo} alt={user.name} /> : <AvatarFallback>{initials(user?.name||"")}</AvatarFallback>}
             </Avatar>
             <span className="hidden sm:inline">{user?.name || "Perfil"}</span>
           </Button>
-          <Button variant="outline" onClick={onSignOut}>Salir</Button>
+          <Button onClick={onSignOut}>Salir</Button>
         </div>
       </div>
     </div>
@@ -126,12 +156,12 @@ function ProfileDialog({ open, setOpen, user, onSave }) {
             <div className="flex gap-2">
               <Input placeholder="URL de foto (opcional)" value={photo} onChange={e=>setPhoto(e.target.value)} />
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-              <Button variant="outline" onClick={()=>fileRef.current?.click()} className="gap-2"><ImageIcon className="h-4 w-4"/>Subir</Button>
+              <Button onClick={()=>fileRef.current?.click()} className="gap-2"><ImageIcon/>Subir</Button>
             </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={()=>setOpen(false)}>Cancelar</Button>
+          <Button onClick={()=>setOpen(false)}>Cancelar</Button>
           <Button onClick={()=>{ onSave({ name, photo }); setOpen(false); }}>Guardar</Button>
         </div>
       </DialogContent>
@@ -148,12 +178,12 @@ function GroupCard({ group, isMember, onOpen, onJoin }) {
         </Avatar>
         <div className="flex-1">
           <CardTitle className="text-base">{group.name}</CardTitle>
-          <div className="text-xs text-muted-foreground">Miembros: {group.members_count ?? "-"}</div>
+          <div className="text-xs" style={{opacity:.7}}>Miembros: {group.members_count ?? "-"}</div>
         </div>
         {isMember ? (
-          <Badge variant="secondary">Miembro</Badge>
+          <Badge>Miembro</Badge>
         ) : (
-          <Button size="sm" onClick={(e)=>{ e.stopPropagation(); onJoin(); }}>Unirme</Button>
+          <Button onClick={(e)=>{ e.stopPropagation(); onJoin(); }}>Unirme</Button>
         )}
       </CardHeader>
     </Card>
@@ -176,7 +206,7 @@ function NewGroupDialog({ onCreate }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2"><Plus className="h-4 w-4"/>Crear grupo</Button>
+        <Button className="gap-2"><Plus/>Crear grupo</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -187,10 +217,10 @@ function NewGroupDialog({ onCreate }) {
           <div className="flex gap-2 items-center">
             <Input placeholder="URL avatar (opcional)" value={avatar} onChange={e=>setAvatar(e.target.value)} />
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-            <Button variant="outline" onClick={()=>fileRef.current?.click()} className="gap-2"><ImageIcon className="h-4 w-4"/>Subir</Button>
+            <Button onClick={()=>fileRef.current?.click()} className="gap-2"><ImageIcon/>Subir</Button>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={()=>setOpen(false)}>Cancelar</Button>
+            <Button onClick={()=>setOpen(false)}>Cancelar</Button>
             <Button onClick={()=>{ if(!name.trim()) return; onCreate({ name, avatar }); setName(""); setAvatar(""); setOpen(false); }}>Crear</Button>
           </div>
         </div>
@@ -224,7 +254,7 @@ function PostComposer({ group, me, onPublish }) {
         <div className="flex items-center gap-2">
           <Input placeholder="URL de imagen" value={image} onChange={e=>setImage(e.target.value)} />
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-          <Button variant="outline" onClick={()=>fileRef.current?.click()} className="gap-2"><ImageIcon className="h-4 w-4"/>Subir</Button>
+          <Button onClick={()=>fileRef.current?.click()} className="gap-2"><ImageIcon/>Subir</Button>
           <Button onClick={()=>{ if(!image) return; onPublish({ image, caption }); setImage(""); setCaption(""); }}>Publicar</Button>
         </div>
       </CardContent>
@@ -241,12 +271,12 @@ function PostCard({ post, group, author }) {
         </Avatar>
         <div className="flex-1">
           <CardTitle className="text-sm">{group?.name || "Grupo"}</CardTitle>
-          <div className="text-xs text-muted-foreground">por {author?.name || "Miembro"} · {timeAgo(post.ts || post.created_at)}</div>
+          <div className="text-xs" style={{opacity:.7}}>por {author?.name || "Miembro"} · {timeAgo(post.ts || post.created_at)}</div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
         {post.image && (
-          <img src={post.image} alt={post.caption||"post"} className="w-full max-h-[420px] object-cover" />
+          <img src={post.image} alt={post.caption||"post"} style={{width:"100%", maxHeight:420, objectFit:"cover"}} />
         )}
         {post.caption && (
           <div className="px-4 py-3 text-sm">{post.caption}</div>
@@ -261,12 +291,12 @@ function ChatPanel({ messages, onSend, me }) {
   const endRef = useRef(null);
   useEffect(()=>{ endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   return (
-    <div className="flex flex-col h-96 border rounded-xl overflow-hidden">
+    <div className="flex flex-col" style={{height:384, border:"1px solid #eee", borderRadius:12, overflow:"hidden"}}>
       <ScrollArea className="flex-1 p-3">
         <div className="space-y-2">
           {messages.map((m) => (
-            <div key={m.id} className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${m.by_user_id===me?.id?"bg-primary text-primary-foreground ml-auto":"bg-muted"}`}>
-              <div className="opacity-70 text-xs pb-0.5">{timeAgo(m.ts || m.created_at)}</div>
+            <div key={m.id} className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${m.by_user_id===me?.id?"bg-black text-white ml-auto":"bg-[#f4f4f5]"}`}>
+              <div style={{opacity:.7, fontSize:12, paddingBottom:2}}>{timeAgo(m.ts || m.created_at)}</div>
               <div>{m.text}</div>
             </div>
           ))}
@@ -275,14 +305,16 @@ function ChatPanel({ messages, onSend, me }) {
       </ScrollArea>
       <div className="border-t p-2 flex gap-2">
         <Input placeholder="Escribe un mensaje..." value={text} onChange={e=>setText(e.target.value)} onKeyDown={(e)=>{ if(e.key==='Enter'){ if(!text.trim()) return; onSend(text.trim()); setText(""); } }} />
-        <Button onClick={()=>{ if(!text.trim()) return; onSend(text.trim()); setText(""); }} className="gap-2"><Send className="h-4 w-4"/>Enviar</Button>
+        <Button onClick={()=>{ if(!text.trim()) return; onSend(text.trim()); setText(""); }} className="gap-2"><Send/>Enviar</Button>
       </div>
     </div>
   );
 }
 
 function GroupPage({ group, me, posts, allUsers, onPublish, onOpenMembers, onOpenChat }) {
-  const groupPosts = posts.filter((p) => p.group_id === group.id).sort((a,b)=> (new Date(b.ts||b.created_at)) - (new Date(a.ts||a.created_at)));
+  const groupPosts = posts
+    .filter((p) => p.group_id === group.id)
+    .sort((a,b)=> (new Date(b.ts||b.created_at)) - (new Date(a.ts||a.created_at)));
   return (
     <div className="grid gap-4">
       <Card>
@@ -292,11 +324,11 @@ function GroupPage({ group, me, posts, allUsers, onPublish, onOpenMembers, onOpe
           </Avatar>
           <div className="flex-1">
             <CardTitle className="text-lg">{group.name}</CardTitle>
-            <div className="text-xs text-muted-foreground">Admin: {group.admin_id===me?.id?"Tú":(group.admin_id||"").slice(0,6)} · Miembros: {group.members_count ?? "-"}</div>
+            <div className="text-xs" style={{opacity:.7}}>Admin: {group.admin_id===me?.id?"Tú":(group.admin_id||"").slice(0,6)} · Miembros: {group.members_count ?? "-"}</div>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={onOpenMembers}>Miembros</Button>
-            <Button onClick={onOpenChat} className="gap-2"><MessageSquareText className="h-4 w-4"/>Chat</Button>
+            <Button onClick={onOpenMembers}>Miembros</Button>
+            <Button onClick={onOpenChat} className="gap-2"><MessageSquareText/>Chat</Button>
           </div>
         </CardHeader>
       </Card>
@@ -305,7 +337,7 @@ function GroupPage({ group, me, posts, allUsers, onPublish, onOpenMembers, onOpe
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {groupPosts.length===0 && (
-          <div className="text-muted-foreground">Aún no hay publicaciones.</div>
+          <div style={{opacity:.7}}>Aún no hay publicaciones.</div>
         )}
         {groupPosts.map((p) => (
           <PostCard key={p.id} post={p} group={group} author={allUsers.find((u)=>u.id===p.by_user_id)} />
@@ -327,41 +359,21 @@ function DiscoverList({ groups, myGroups, onOpenGroup, onJoin }) {
 
 function Feed({ me, groups, posts }) {
   const myGroupIds = groups.filter((g)=>g._isMine).map((g)=>g.id);
-  const visiblePosts = posts.filter((p)=>myGroupIds.includes(p.group_id))
+  const visiblePosts = posts
+    .filter((p)=>myGroupIds.includes(p.group_id))
     .sort((a,b)=> (new Date(b.ts||b.created_at)) - (new Date(a.ts||a.created_at)));
   return (
     <div className="grid gap-4">
-      {visiblePosts.length===0 && <div className="text-muted-foreground">Tu feed está vacío. Únete a un grupo.</div>}
+      {visiblePosts.length===0 && <div style={{opacity:.7}}>Tu feed está vacío. Únete a un grupo.</div>}
       {visiblePosts.map((p)=>{
         const group = groups.find((g)=>g.id===p.group_id);
-        return <PostCard key={p.id} post={p} group={group} author={p.by_user_id===me?.id?me:null} />
+        return <PostCard key={p.id} post={p} group={group} author={p.by_user_id===me?.id?me:null} />;
       })}
     </div>
   );
 }
 
-function MembersDialog({ open, setOpen, members, profilesById, title }) {
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Miembros de {title}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-2">
-          {members.length===0 && <div className="text-sm text-muted-foreground">Sin miembros.</div>}
-          {members.map((uid) => (
-            <div key={uid} className="flex items-center gap-2 text-sm">
-              <Badge variant="secondary">Miembro</Badge>
-              <span>{profilesById[uid]?.name || `Usuario ${uid.slice(0,6)}`}</span>
-            </div>
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/* ===================== APP (con Supabase) ===================== */
+/* ===================== APP PRINCIPAL ===================== */
 export default function App() {
   /* Sesión / perfil */
   const [session, setSession] = useState(null);
@@ -395,9 +407,11 @@ export default function App() {
   /* Asegurar perfil */
   useEffect(()=>{
     (async ()=>{
-      const { data: p } = await supabase.from("profiles").select("*").eq("id", meId).maybeSingle();
+      const { data: p, error } = await supabase.from("profiles").select("*").eq("id", meId).maybeSingle();
+      if (error) { console.error("profiles select", error); return; }
       if (!p) {
-        const { data: np } = await supabase.from("profiles").insert({ id: meId, name: "" }).select().single();
+        const { data: np, error: e2 } = await supabase.from("profiles").insert({ id: meId, name: "" }).select().single();
+        if (e2) { console.error("profiles insert", e2); return; }
         setMe(np);
       } else {
         setMe(p);
@@ -417,12 +431,14 @@ export default function App() {
     const marked = (gs||[]).map(g => ({ ...g, _isMine: myGroupIds.includes(g.id) }));
     setGroups(marked);
 
-    // Perfiles (admins y yo)
+    // Perfiles (admins + yo) para mostrar nombres
     const adminIds = Array.from(new Set(marked.map(g=>g.admin_id).filter(Boolean).concat(meId)));
     if (adminIds.length) {
       const { data: ps } = await supabase.from("profiles").select("*").in("id", adminIds);
       const map = {}; (ps||[]).forEach(p=>{ map[p.id] = p; });
       setProfilesById(map);
+    } else {
+      setProfilesById({});
     }
 
     // Posts (mis grupos)
@@ -477,7 +493,7 @@ export default function App() {
   }
   async function createGroup({ name, avatar }) {
     const { data: g, error } = await supabase.from("groups").insert({ name, avatar, admin_id: meId }).select().single();
-    if (error) return alert(error.message);
+    if (error) { alert(error.message); return; }
     await supabase.from("memberships").insert({ user_id: meId, group_id: g.id });
     setOpenGroupId(g.id);
     setActiveTab("groups");
@@ -485,7 +501,7 @@ export default function App() {
   }
   async function joinGroup(groupId) {
     const { error } = await supabase.from("memberships").insert({ user_id: meId, group_id: groupId });
-    if (error) return alert(error.message);
+    if (error) { alert(error.message); return; }
     await loadAll();
   }
   async function publishToGroup(groupId, { image, caption }) {
@@ -505,152 +521,172 @@ export default function App() {
   const onboardingNeeded = !me?.name;
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-background text-foreground">
-        <TopBar user={me} onEditProfile={()=>setProfileOpen(true)} onSignOut={()=>supabase.auth.signOut()} />
+    <AppErrorBoundary>
+      <TooltipProvider>
+        <div className="min-h-screen" style={{background:"white", color:"#111"}}>
+          <TopBar user={me} onEditProfile={()=>setProfileOpen(true)} onSignOut={()=>supabase.auth.signOut()} />
 
-        <main className="mx-auto max-w-6xl px-4 py-6 grid gap-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-4 w-full">
-              <TabsTrigger value="feed">Feed</TabsTrigger>
-              <TabsTrigger value="groups">Grupos</TabsTrigger>
-              <TabsTrigger value="chats">Chats</TabsTrigger>
-              <TabsTrigger value="yo">Yo</TabsTrigger>
-            </TabsList>
+          <main className="mx-auto max-w-6xl px-4 py-6 grid gap-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid" style={{gridTemplateColumns:"repeat(4, minmax(0,1fr))", gap:8}}>
+                <TabsTrigger value="feed">Feed</TabsTrigger>
+                <TabsTrigger value="groups">Grupos</TabsTrigger>
+                <TabsTrigger value="chats">Chats</TabsTrigger>
+                <TabsTrigger value="yo">Yo</TabsTrigger>
+              </TabsList>
 
-            {/* FEED */}
-            <TabsContent value="feed" className="grid gap-4">
-              <Feed me={me} groups={groups.map(g=>({...g, _isMine: myGroupIds.includes(g.id)}))} posts={posts} />
-            </TabsContent>
+              {/* FEED */}
+              <TabsContent value="feed" className="grid gap-4">
+                <Feed me={me} groups={groups.map(g=>({...g, _isMine: myGroupIds.includes(g.id)}))} posts={posts} />
+              </TabsContent>
 
-            {/* GRUPOS */}
-            <TabsContent value="groups" className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 grid gap-4">
-                {openGroup ? (
-                  <GroupPage
-                    group={openGroup}
-                    me={me}
-                    posts={posts.filter(p=>p.group_id===openGroup.id)}
-                    allUsers={[me]}
-                    onPublish={(payload)=>publishToGroup(openGroup.id, payload)}
-                    onOpenMembers={()=>setMembersOpen(true)}
-                    onOpenChat={()=>setChatOpen(true)}
+              {/* GRUPOS */}
+              <TabsContent value="groups" className="grid" style={{gap:24, gridTemplateColumns:"1fr", alignItems:"start"}}>
+                <div className="grid gap-4">
+                  {openGroup ? (
+                    <GroupPage
+                      group={openGroup}
+                      me={me}
+                      posts={posts.filter(p=>p.group_id===openGroup.id)}
+                      allUsers={[me]}
+                      onPublish={(payload)=>publishToGroup(openGroup.id, payload)}
+                      onOpenMembers={()=>setMembersOpen(true)}
+                      onOpenChat={()=>setChatOpen(true)}
+                    />
+                  ) : (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Gestiona tus grupos</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="text-sm" style={{opacity:.7}}>Selecciona un grupo o crea uno nuevo.</div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+
+                <div className="grid gap-3" style={{marginTop:8}}>
+                  <NewGroupDialog onCreate={createGroup} />
+                  <Separator />
+                  <div className="text-sm font-medium">Mis grupos</div>
+                  <DiscoverList
+                    groups={myGroups}
+                    myGroups={myGroupIds}
+                    onOpenGroup={(id)=>setOpenGroupId(id)}
+                    onJoin={()=>{}}
                   />
-                ) : (
+                  <Separator />
+                  <div className="text-sm font-medium">Descubrir</div>
+                  <DiscoverList
+                    groups={discover}
+                    myGroups={myGroupIds}
+                    onOpenGroup={(id)=>setOpenGroupId(id)}
+                    onJoin={(id)=>joinGroup(id)}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* CHATS */}
+              <TabsContent value="chats" className="grid" style={{gap:24}}>
+                <div className="grid gap-3">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Gestiona tus grupos</CardTitle>
+                      <CardTitle className="text-base">Chats de mis grupos</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="text-sm text-muted-foreground">Selecciona un grupo o crea uno nuevo.</div>
+                    <CardContent className="grid gap-2">
+                      {myGroups.length===0 && <div className="text-sm" style={{opacity:.7}}>Únete a un grupo para chatear.</div>}
+                      {myGroups.map((g) => (
+                        <Button key={g.id} className="justify-start" onClick={()=>{ setOpenGroupId(g.id); setActiveTab("groups"); setChatOpen(true); }}>
+                          <Avatar className="h-5 w-5" style={{marginRight:8}}>
+                            {g.avatar ? <AvatarImage src={g.avatar} /> : <AvatarFallback>{initials(g.name)}</AvatarFallback>}
+                          </Avatar>
+                          {g.name}
+                        </Button>
+                      ))}
                     </CardContent>
                   </Card>
-                )}
-              </div>
+                </div>
+                <div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">Actividad reciente</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-sm" style={{opacity:.7}}>
+                      Publicaciones y chats que vayas creando aparecerán aquí.
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
 
-              <div className="grid gap-3">
-                <NewGroupDialog onCreate={createGroup} />
-                <Separator />
-                <div className="text-sm font-medium">Mis grupos</div>
-                <DiscoverList
-                  groups={myGroups}
-                  myGroups={myGroupIds}
-                  onOpenGroup={(id)=>setOpenGroupId(id)}
-                  onJoin={()=>{}}
-                />
-                <Separator />
-                <div className="text-sm font-medium">Descubrir</div>
-                <DiscoverList
-                  groups={discover}
-                  myGroups={myGroupIds}
-                  onOpenGroup={(id)=>setOpenGroupId(id)}
-                  onJoin={(id)=>joinGroup(id)}
-                />
-              </div>
-            </TabsContent>
-
-            {/* CHATS */}
-            <TabsContent value="chats" className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1 space-y-3">
+              {/* YO */}
+              <TabsContent value="yo" className="grid gap-4">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Chats de mis grupos</CardTitle>
+                  <CardHeader className="flex-row items-center gap-3 space-y-0">
+                    <Avatar className="h-12 w-12">
+                      {me?.photo ? <AvatarImage src={me.photo} /> : <AvatarFallback>{initials(me?.name||"")}</AvatarFallback>}
+                    </Avatar>
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{me?.name || "Sin nombre"}</CardTitle>
+                      <div className="text-xs" style={{opacity:.7}}>{meId}</div>
+                    </div>
+                    <Button onClick={()=>setProfileOpen(true)}>Editar perfil</Button>
                   </CardHeader>
-                  <CardContent className="grid gap-2">
-                    {myGroups.length===0 && <div className="text-sm text-muted-foreground">Únete a un grupo para chatear.</div>}
-                    {myGroups.map((g) => (
-                      <Button key={g.id} variant="outline" className="justify-start" onClick={()=>{ setOpenGroupId(g.id); setActiveTab("groups"); setChatOpen(true); }}>
-                        <Avatar className="h-5 w-5 mr-2">
-                          {g.avatar ? <AvatarImage src={g.avatar} /> : <AvatarFallback>{initials(g.name)}</AvatarFallback>}
-                        </Avatar>
-                        {g.name}
-                      </Button>
-                    ))}
-                  </CardContent>
                 </Card>
-              </div>
-              <div className="lg:col-span-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Actividad reciente</CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
-                    Publicaciones y chats que vayas creando aparecerán aquí.
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            </Tabs>
+          </main>
 
-            {/* YO */}
-            <TabsContent value="yo" className="grid gap-4">
-              <Card>
-                <CardHeader className="flex-row items-center gap-3 space-y-0">
-                  <Avatar className="h-12 w-12">
-                    {me?.photo ? <AvatarImage src={me.photo} /> : <AvatarFallback>{initials(me?.name||"")}</AvatarFallback>}
-                  </Avatar>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{me?.name || "Sin nombre"}</CardTitle>
-                    <div className="text-xs text-muted-foreground">{meId}</div>
-                  </div>
-                  <Button variant="outline" onClick={()=>setProfileOpen(true)}>Editar perfil</Button>
-                </CardHeader>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </main>
+          {/* Diálogos */}
+          <ProfileDialog open={profileOpen || onboardingNeeded} setOpen={setProfileOpen} user={me} onSave={updateUser} />
 
-        {/* Dialogos */}
-        <ProfileDialog open={profileOpen || onboardingNeeded} setOpen={setProfileOpen} user={me} onSave={updateUser} />
+          <MembersDialog
+            open={membersOpen}
+            setOpen={setMembersOpen}
+            members={openGroup ? memberships.filter(m=>m.group_id===openGroup.id).map(m=>m.user_id) : []}
+            profilesById={profilesById}
+            title={openGroup?.name || ""}
+          />
 
-        <MembersDialog
-          open={membersOpen}
-          setOpen={setMembersOpen}
-          members={
-            openGroup
-              ? memberships.filter(m=>m.group_id===openGroup.id).map(m=>m.user_id)
-              : []
-          }
-          profilesById={profilesById}
-          title={openGroup?.name || ""}
-        />
+          <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Chat de {openGroup?.name || ""}</DialogTitle>
+              </DialogHeader>
+              {openGroup ? (
+                <ChatPanel
+                  messages={messages}
+                  onSend={(t)=>sendGroupMessage(openGroup.id, t)}
+                  me={{ id: meId }}
+                />
+              ) : (
+                <div className="text-sm" style={{opacity:.7}}>Selecciona un grupo.</div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
+      </TooltipProvider>
+    </AppErrorBoundary>
+  );
+}
 
-        <Dialog open={chatOpen} onOpenChange={setChatOpen}>
-          <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Chat de {openGroup?.name || ""}</DialogTitle>
-            </DialogHeader>
-            {openGroup ? (
-              <ChatPanel
-                messages={messages}
-                onSend={(t)=>sendGroupMessage(openGroup.id, t)}
-                me={{ id: meId }}
-              />
-            ) : (
-              <div className="text-sm text-muted-foreground">Selecciona un grupo.</div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </TooltipProvider>
+/* ====== MembersDialog (después de App para evitar hoisting raro) ====== */
+function MembersDialog({ open, setOpen, members, profilesById, title }) {
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Miembros de {title}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-2">
+          {members.length===0 && <div className="text-sm" style={{opacity:.7}}>Sin miembros.</div>}
+          {members.map((uid) => (
+            <div key={uid} className="flex items-center gap-2 text-sm">
+              <Badge>Miembro</Badge>
+              <span>{profilesById[uid]?.name || `Usuario ${uid.slice(0,6)}`}</span>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
