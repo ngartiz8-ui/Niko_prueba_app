@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+
 import { supabase } from "./lib/supabase.js";
 
 import { defineConfig } from "vite";
